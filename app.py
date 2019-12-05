@@ -5,14 +5,13 @@ import urllib3
 import dns.resolver
 import json
 from bs4 import BeautifulSoup
-import builtwith
 
 print("Here we go!")
 
 
 def OrgName():
     # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "conradgargett" # < hard coded for testing only.
+    orgname = "conradgargett"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
@@ -24,7 +23,7 @@ def OrgName():
     """ + org3)
 
     # response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
-    response = "y" # < in for testing only
+    response = "y"  # < in for testing only
     if response == "y":
         print("""Carry on.
 .
@@ -65,7 +64,7 @@ the corporate website.""")
     for x, y in temp.items():
         print(" " + x + "/. ", y)
     # linecheck = input("Line Number: ") # < comment out for testing only
-    linecheck = "1" # < in for testing only
+    linecheck = "1"  # < in for testing only
     print("URL: " + temp[linecheck])
     websiteurl = temp[linecheck]
 
@@ -77,7 +76,7 @@ def ContactScrape(websiteurl):
 Performing website contact detail extraction @ """ + websiteurl + """
 .""")
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/" , "/contactus/", "/contact_us/", "/about/"]
+    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/about/"]
     contactemails = {}
     contactemails[websiteurl] = []
     for li in contacturllist:
@@ -132,15 +131,13 @@ Commencing MX Lookup on identified domains
     for i in list:
         result = dns.resolver.query(i, 'MX')
         for j in result:
-            #arecord = dns.resolver.query(j.to_text(), 'A')
-            #for ipvalue in arecord:
+            # arecord = dns.resolver.query(j.to_text(), 'A')
+            # for ipvalue in arecord:
             #    mxlist[j.to_text] = ipvalue.to_text()
             print(i + """
 """"MX record at: " + j.to_text())
     url = next(iter(list))
-    #return GrabSiteDetails(url)
-
-
+    # return GrabSiteDetails(url)
 
 
 OrgName()
