@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-import dnspython as dns
+import dns
 import urllib3
 import dns.resolver
 import json
@@ -138,10 +138,9 @@ Commencing MX Lookup on identified domains
             print(i + """
 """"MX record at: " + j.to_text())
     url = next(iter(list))
-    return GrabSiteDetails(url)
+    #return GrabSiteDetails(url)
 
 
-def GrabSiteDetails(url):
-    
+
 
 OrgName()
