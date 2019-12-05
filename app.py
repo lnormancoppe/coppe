@@ -11,8 +11,8 @@ print("Here we go!")
 
 
 def OrgName():
-    # orgname = input("Enter organisation name: ")
-    orgname = "conradgargett"
+    # orgname = input("Enter organisation name: ") # Commented out for testing only
+    orgname = "conradgargett" # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
