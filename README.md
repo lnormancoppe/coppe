@@ -1,4 +1,3 @@
-# coppe
-Coppe projects
+# Coppe projects
 
 Glad I wasted your time?
