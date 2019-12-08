@@ -141,14 +141,13 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
                     wsrow = wsrow + 1
                     worksheet.write(wsrow, wscol, checkurl)
                     worksheet.write(wsrow, wscol + 1, str(response.status))
-                    worksheet.write(wsrow, wscol + 2, i)
-                    workbook.close() # ####This is where the error is occuring. Grr.
+                    worksheet.write(wsrow, wscol + 2, str2)
 
                 except ValueError:
                     break
 
         # There should be another lookup here to identify where a page in built on json eg. 'email' : 'user@domain.com'
-
+    workbook.close()
     print("\n-------------------------------------------------------------\n")
     return # CleanContacts(contactemails)
 
