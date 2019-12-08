@@ -69,7 +69,8 @@ def DnsSearch(orglist):
 
     return ContactScrape(websiteurl)
 
-
+#TODO: allow input of a list of paths to trst based on a text file
+#TODO: checkurl var shouldn't be hard-coded to 'http://www' Need to define a method to build this based on the target
 def ContactScrape(websiteurl):
     print("Performing website contact detail extraction @" + websiteurl)
     http = urllib3.PoolManager()
