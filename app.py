@@ -12,7 +12,7 @@ print("Here we go!\n------------------------------------------------------------
 
 def OrgName():
     # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "coppe"  # < hard coded for testing only.
+    orgname = "customshouse"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
@@ -42,7 +42,8 @@ def DnsSearch(orglist, orgname):
     iplist = {}  # Table to store org name and IP address
 
     # Create xlsx workbook to store output.
-    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx")
+    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx") # This location will need to
+    # be made generic to suit all of our users.
     worksheet = workbook.add_worksheet("Output")
     worksheet.write('A1', "Org Name")
     worksheet.write('B1', orgname)
@@ -141,7 +142,7 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
                     worksheet.write(wsrow, wscol, checkurl)
                     worksheet.write(wsrow, wscol + 1, str(response.status))
                     worksheet.write(wsrow, wscol + 2, i)
-                    workbook.close()
+                    workbook.close() # ####This is where the error is occuring. Grr.
 
                 except ValueError:
                     break
