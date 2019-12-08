@@ -13,7 +13,10 @@ print("Here we go!\n------------------------------------------------------------
 
 def OrgName():
     # orgname = input("Enter organisation name: ") # Commented out for testing only
+    # TODO: Add Organisation as input parameter. Ask for input only if value not supplied
     orgname = "conradgargett" # < hard coded for testing only.
+    #TODO: allowing parsing a list of domain spaces as input variables, or allow for parsing of a text file. Perhaps move a "default" list into a config file?
+    #TODO: use a list var for domains rather than indivudial string variables - there could be a whole bunch to be tested...
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
