@@ -42,9 +42,13 @@ def DnsSearch(orglist, orgname):
     iplist = {}  # Table to store org name and IP address
 
     # Create xlsx workbook to store output.
-    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx") # This location will need to
+    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
     # be made generic to suit all of our users.
     worksheet = workbook.add_worksheet("Output")
+    worksheet.set_column('A:A', 48)
+    worksheet.set_column('B:B', 30)
+    worksheet.set_column('C:C', 40)
+    worksheet.set_column('D:D', 30)
     worksheet.write('A1', "Org Name")
     worksheet.write('B1', orgname)
     wsrow = 2
@@ -147,16 +151,18 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
                     break
 
         # There should be another lookup here to identify where a page in built on json eg. 'email' : 'user@domain.com'
-    workbook.close()
     print("\n-------------------------------------------------------------\n")
-    return # CleanContacts(contactemails)
+    return CleanContacts(contactemails, wsrow, wscol, workbook, worksheet)
 
 
-def CleanContacts(contactemails):
+def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet):
     # This function is cleaning up the returned list of email addresses. The intention being to pivot the output so we
     # are only dealing with one instance of each domain variant before we commence MX lookup.
 
-    list = {} # Forced to be a dictionary which prevents duplicate entries.
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "Unique Domains")
+
+    list = {}  # Forced to be a dictionary which prevents duplicate entries.
     for i in contactemails.keys():
         try:
             x = i.split('@', 1)[1]
@@ -166,25 +172,47 @@ def CleanContacts(contactemails):
 
     print("The following unique domain names have been found:\n")
     for i in list:
+        wsrow = wsrow + 1
+        worksheet.write(wsrow, wscol, i)
         print(i)
-    return mxlookup(list)
+
+    return mxlookup(list, wsrow, wscol, workbook, worksheet)
 
 
-def mxlookup(list):
+def mxlookup(list, wsrow, wscol, workbook, worksheet):
     # Performing a MX Lookup against the unique list of domain names, returned from the website URL and scraping of the
     # various "contact" pages across the site.
 
     print("\n-------------------------------------------------------------\nCommencing MX Lookup on identified "
           "domains\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "Domain MX Assessment")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "Domain")
+    worksheet.write(wsrow, wscol + 1, "MX Records")
+    worksheet.write(wsrow, wscol + 2, "Priority")
+    worksheet.write(wsrow, wscol + 3, "IP Address")
+
     mxlist = {}
     for i in list:
         result = dns.resolver.query(i, 'MX')
         for j in result:
-            # arecord = dns.resolver.query(j.to_text(), 'A')
-            # for ipvalue in arecord:
-            #    mxlist[j.to_text] = ipvalue.to_text()
-            print(i + "MX record at: " + j.to_text())
-    url = next(iter(list))
+            wsrow = wsrow + 1
+            x = j.to_text()
+            str1, str2 = x.split()
+            arecord = dns.resolver.query(str2, 'A')
+            for ipvalue in arecord:
+                mxlist[str2] = ipvalue.to_text()
+                ipval = ipvalue.to_text()
+            print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
+            worksheet.write(wsrow, wscol, i)
+            worksheet.write(wsrow, wscol + 1, str2)
+            worksheet.write(wsrow, wscol + 2, str1)
+            worksheet.write(wsrow, wscol + 3, ipval)
+
+    workbook.close()
+    print("\n")
     # return GrabSiteDetails(url)
 
 
