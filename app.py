@@ -12,8 +12,8 @@ print("Here we go!\n\n----------------------------------------------------------
 
 
 def OrgName():
-    # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "bbc"  # < hard coded for testing only.
+    orgname = input("Enter organisation name: ") # Commented out for testing only
+    # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
@@ -21,8 +21,8 @@ def OrgName():
 
     print("\nScan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
 
-    # response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
-    response = "y"  # < in for testing only
+    response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
+    # response = "y"  # < in for testing only
     if response == "y":
         print("\nApproved to carry on. \n\n-------------------------------------------------------------\n\nPerforming "
               "DNS lookup")
@@ -89,8 +89,8 @@ def DnsSearch(orglist, orgname):
 
     # Request a user input that corresponds to the line number to determine the corporate website. We take that input
     # and pass to the next function to begin scraping for email credentials.
-    # linecheck = input("Line Number: ") # < comment out for testing only
-    linecheck = "1"  # < in for testing only
+    linecheck = input("Line Number: ") # < comment out for testing only
+    # linecheck = "1"  # < in for testing only
     print("\n-------------------------------------------------------------\nSelected URL: " + temp[linecheck] +
           "\n-------------------------------------------------------------\n")
 
@@ -216,7 +216,7 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
             worksheet.write(wsrow, wscol + 3, ipval)
 
     workbook.close()
-    return reconng(list) # findcname(mxlist)
+    return # reconng(list) # findcname(mxlist)
 
 
 def findcname(mxlist):
