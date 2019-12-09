@@ -7,7 +7,6 @@ import json
 from bs4 import BeautifulSoup
 import xlsxwriter
 
-
 print("Here we go!\n-------------------------------------------------------------")
 
 
@@ -198,14 +197,17 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
     mxlist = {}
     for i in list:
         result = dns.resolver.query(i, 'MX')
+
         for j in result:
             wsrow = wsrow + 1
             x = j.to_text()
             str1, str2 = x.split()
             arecord = dns.resolver.query(str2, 'A')
+
             for ipvalue in arecord:
                 mxlist[str2] = ipvalue.to_text()
                 ipval = ipvalue.to_text()
+
             print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
             worksheet.write(wsrow, wscol, i)
             worksheet.write(wsrow, wscol + 1, str2)
@@ -214,6 +216,14 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
 
     workbook.close()
     print("\n")
+    return # findcname(mxlist)
+
+
+def findcname(mxlist):
+    for i in mxlist:
+        result = dns.resolver.query(i, 'CNAME')
+        for j in result:
+            print(j.target)
 
 
 if __name__ == '__main__':
