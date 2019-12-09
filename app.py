@@ -6,24 +6,25 @@ import dns.resolver
 import json
 from bs4 import BeautifulSoup
 import xlsxwriter
+import subprocess
 
-print("Here we go!\n-------------------------------------------------------------")
+print("Here we go!\n\n-------------------------------------------------------------")
 
 
 def OrgName():
     # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "conradgargett"  # < hard coded for testing only.
+    orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
     orglist = [org1, org2, org3]
 
-    print("Scan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
+    print("\nScan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
 
     # response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
     response = "y"  # < in for testing only
     if response == "y":
-        print("\nApproved to carry on. \n-------------------------------------------------------------\nPerforming "
+        print("\nApproved to carry on. \n\n-------------------------------------------------------------\n\nPerforming "
               "DNS lookup")
         return DnsSearch(orglist, orgname)
     else:
@@ -183,7 +184,7 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
     # Performing a MX Lookup against the unique list of domain names, returned from the website URL and scraping of the
     # various "contact" pages across the site.
 
-    print("\n-------------------------------------------------------------\nCommencing MX Lookup on identified "
+    print("\n-------------------------------------------------------------\n\nCommencing MX Lookup on identified "
           "domains\n")
 
     wsrow = wsrow + 2
@@ -215,15 +216,28 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
             worksheet.write(wsrow, wscol + 3, ipval)
 
     workbook.close()
-    print("\n")
-    return # findcname(mxlist)
+    return reconng(list) # findcname(mxlist)
 
 
 def findcname(mxlist):
+    print("-------------------------------------------------------------\n\nCommencing CName query on identified "
+          "domains\n")
     for i in mxlist:
-        result = dns.resolver.query(i, 'CNAME')
-        for j in result:
-            print(j.target)
+        try:
+            result = dns.resolver.query(i, 'CNAME')
+            for j in result:
+                print(j.target)
+        except dns.resolver.NoAnswer:
+            print("No CName found for " + i)
+            continue
+
+
+def reconng(list):
+    for i in list:
+        # args = ["modules load recon/domains-hosts/brute_hosts", "options set SOURCE " + i, "run", "exit"]
+        subprocess.run("recon-ng") # Need to find a way to pass in the sequence of commands as laid out in args, in to
+        # the terminal once recon-ng is running. Then run the sql script and output the table results to our excel
+        # sheet.
 
 
 if __name__ == '__main__':
