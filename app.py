@@ -214,7 +214,7 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
 
     workbook.close()
     print("\n")
-    # return GrabSiteDetails(url)
+
 
 if __name__ == '__main__':
     OrgName()
