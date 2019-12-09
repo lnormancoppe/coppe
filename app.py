@@ -13,7 +13,7 @@ print("Here we go!\n------------------------------------------------------------
 
 def OrgName():
     # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "customshouse"  # < hard coded for testing only.
+    orgname = "conradgargett"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
@@ -133,7 +133,7 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
         mailtos = soup.select('a[href^=mailto]')
 
         if not mailtos:
-            print("No email addresses found using href")
+            print("No email addresses found using href scan")
         else:
             for i in mailtos:
                 href = i['href']
