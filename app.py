@@ -1,14 +1,36 @@
 #!/usr/bin/python3
 
-import dns
-import urllib3
-import dns.resolver
-import json
-from bs4 import BeautifulSoup
-import xlsxwriter
 import subprocess
 
+import dns
+import dns.resolver
+import requests
+from requests import get
+import urllib3
+import xlsxwriter
+from bs4 import BeautifulSoup
+
+
 print("Here we go!\n\n-------------------------------------------------------------")
+
+
+def StartTor():
+    session = requests.session()
+
+    proxies = {
+        'http': 'socks4://localhost:9050',
+        'https': 'socks4://localhost:9050'
+    }
+
+
+    r = session.get("http://httpbin.org/ip", proxies=proxies).text
+    print(r)
+
+
+    ip = get('https://api.ipify.org').text
+    print(ip)
+
+    return # OrgName()
 
 
 def OrgName():
@@ -241,4 +263,4 @@ def reconng(list):
 
 
 if __name__ == '__main__':
-    OrgName()
+    StartTor()
