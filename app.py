@@ -1,34 +1,52 @@
 #!/usr/bin/python3
 
+import subprocess
+
 import dns
-import urllib3
 import dns.resolver
-import json
-from bs4 import BeautifulSoup
+import requests
+from requests import get
+import urllib3
 import xlsxwriter
+from bs4 import BeautifulSoup
 
 
-print("Here we go!\n-------------------------------------------------------------")
+print("Here we go!\n\n-------------------------------------------------------------")
+
+
+def StartTor():
+    session = requests.session()
+
+    proxies = {
+        'http': 'socks4://localhost:9050',
+        'https': 'socks4://localhost:9050'
+    }
+
+
+    r = session.get("http://httpbin.org/ip", proxies=proxies).text
+    print(r)
+
+
+    ip = get('https://api.ipify.org').text
+    print(ip)
+
+    return # OrgName()
 
 
 def OrgName():
-    # orgname = input("Enter organisation name: ") # Commented out for testing only
-    # TODO: Add Organisation as input parameter. Ask for input only if value not supplied
-    orgname = "conradgargett" # < hard coded for testing only.
-    #TODO: allowing parsing a list of domain spaces as input variables, or allow for parsing of a text file. Perhaps move a "default" list into a config file?
-    #TODO: use a list var for domains rather than indivudial string variables - there could be a whole bunch to be tested...
-    orgname = "conradgargett"  # < hard coded for testing only.
+    orgname = input("Enter organisation name: ") # Commented out for testing only
+    # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
     orglist = [org1, org2, org3]
 
-    print("Scan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
+    print("\nScan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
 
-    # response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
-    response = "y"  # < in for testing only
+    response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
+    # response = "y"  # < in for testing only
     if response == "y":
-        print("\nApproved to carry on. \n-------------------------------------------------------------\nPerforming "
+        print("\nApproved to carry on. \n\n-------------------------------------------------------------\n\nPerforming "
               "DNS lookup")
         return DnsSearch(orglist, orgname)
     else:
@@ -93,8 +111,8 @@ def DnsSearch(orglist, orgname):
 
     # Request a user input that corresponds to the line number to determine the corporate website. We take that input
     # and pass to the next function to begin scraping for email credentials.
-    # linecheck = input("Line Number: ") # < comment out for testing only
-    linecheck = "1"  # < in for testing only
+    linecheck = input("Line Number: ") # < comment out for testing only
+    # linecheck = "1"  # < in for testing only
     print("\n-------------------------------------------------------------\nSelected URL: " + temp[linecheck] +
           "\n-------------------------------------------------------------\n")
 
@@ -113,9 +131,6 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
     # We use BeautifulSoup4 to parse the response and allow us to easily extract given bodies of information. The output
     # is stored in a table named 'mailtos'.
 
-#TODO: allow input of a list of paths to trst based on a text file
-#TODO: checkurl var shouldn't be hard-coded to 'http://www' Need to define a method to build this based on the target
-#def ContactScrape(websiteurl):
     print("Performing website contact detail extraction @" + websiteurl)
     http = urllib3.PoolManager()
     contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/about/"]
@@ -191,7 +206,7 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
     # Performing a MX Lookup against the unique list of domain names, returned from the website URL and scraping of the
     # various "contact" pages across the site.
 
-    print("\n-------------------------------------------------------------\nCommencing MX Lookup on identified "
+    print("\n-------------------------------------------------------------\n\nCommencing MX Lookup on identified "
           "domains\n")
 
     wsrow = wsrow + 2
@@ -205,14 +220,17 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
     mxlist = {}
     for i in list:
         result = dns.resolver.query(i, 'MX')
+
         for j in result:
             wsrow = wsrow + 1
             x = j.to_text()
             str1, str2 = x.split()
             arecord = dns.resolver.query(str2, 'A')
+
             for ipvalue in arecord:
                 mxlist[str2] = ipvalue.to_text()
                 ipval = ipvalue.to_text()
+
             print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
             worksheet.write(wsrow, wscol, i)
             worksheet.write(wsrow, wscol + 1, str2)
@@ -220,8 +238,29 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
             worksheet.write(wsrow, wscol + 3, ipval)
 
     workbook.close()
-    print("\n")
+    return # reconng(list) # findcname(mxlist)
+
+
+def findcname(mxlist):
+    print("-------------------------------------------------------------\n\nCommencing CName query on identified "
+          "domains\n")
+    for i in mxlist:
+        try:
+            result = dns.resolver.query(i, 'CNAME')
+            for j in result:
+                print(j.target)
+        except dns.resolver.NoAnswer:
+            print("No CName found for " + i)
+            continue
+
+
+def reconng(list):
+    for i in list:
+        # args = ["modules load recon/domains-hosts/brute_hosts", "options set SOURCE " + i, "run", "exit"]
+        subprocess.run("recon-ng") # Need to find a way to pass in the sequence of commands as laid out in args, in to
+        # the terminal once recon-ng is running. Then run the sql script and output the table results to our excel
+        # sheet.
 
 
 if __name__ == '__main__':
-    OrgName()
+    StartTor()
