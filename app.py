@@ -9,11 +9,11 @@ from requests import get
 import urllib3
 import xlsxwriter
 from bs4 import BeautifulSoup
-
+import argparse
 
 print("Here we go!\n\n-------------------------------------------------------------")
 
-
+"""
 def StartTor():
     session = requests.session()
 
@@ -22,15 +22,14 @@ def StartTor():
         'https': 'socks4://localhost:9050'
     }
 
-
     r = session.get("http://httpbin.org/ip", proxies=proxies).text
     print(r)
-
 
     ip = get('https://api.ipify.org').text
     print(ip)
 
     return # OrgName()
+"""
 
 
 def OrgName():
@@ -50,7 +49,7 @@ def OrgName():
               "DNS lookup")
         return DnsSearch(orglist, orgname)
     else:
-        response = input("Do you want to try a different organisation name, y/n?")
+        response = input("Do you want to try a different organisation name, y/n? ")
         if response == "n":
             exit()
         else:
@@ -131,7 +130,7 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
     # We use BeautifulSoup4 to parse the response and allow us to easily extract given bodies of information. The output
     # is stored in a table named 'mailtos'.
 
-    print("Performing website contact detail extraction @" + websiteurl)
+    print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
     contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/about/"]
     contactemails = {}
@@ -175,10 +174,10 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
         # There should be another lookup here to identify where a page in built on json eg. 'email' : 'user@domain.com'
     print("\n-------------------------------------------------------------\n")
-    return CleanContacts(contactemails, wsrow, wscol, workbook, worksheet)
+    return CleanContacts(contactemails, wsrow, wscol, workbook, worksheet, websiteurl)
 
 
-def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet):
+def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet, websiteurl):
     # This function is cleaning up the returned list of email addresses. The intention being to pivot the output so we
     # are only dealing with one instance of each domain variant before we commence MX lookup.
 
@@ -199,10 +198,10 @@ def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet):
         worksheet.write(wsrow, wscol, i)
         print(i)
 
-    return mxlookup(list, wsrow, wscol, workbook, worksheet)
+    return MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl)
 
 
-def mxlookup(list, wsrow, wscol, workbook, worksheet):
+def MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl):
     # Performing a MX Lookup against the unique list of domain names, returned from the website URL and scraping of the
     # various "contact" pages across the site.
 
@@ -237,30 +236,69 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
             worksheet.write(wsrow, wscol + 2, str1)
             worksheet.write(wsrow, wscol + 3, ipval)
 
-    workbook.close()
-    return # reconng(list) # findcname(mxlist)
+    return FindCName(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def findcname(mxlist):
+def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing CName query on identified "
           "domains\n")
-    for i in mxlist:
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "CName Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "Domain")
+    worksheet.write(wsrow, wscol + 1, "CNames")
+
+    try:
+        result = dns.resolver.query(websiteurl, 'CNAME')
+        for j in result:
+            print(j.target)
+
+            wsrow = wsrow + 1
+            worksheet.write(wsrow, wscol, websiteurl)
+            worksheet.write(wsrow, wscol, j.target)
+
+    except dns.resolver.NoAnswer:
+        print("No CName found for " + websiteurl)
+
+    return SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet)
+
+
+def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
+    print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
+          "identified corporate domain\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "SubDomain Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "SubDomain")
+    worksheet.write(wsrow, wscol + 1, "IP Address")
+
+    f = open("TESTdnswords.txt", 'r')
+    j = int(1)
+    x = {"index": {"Sub Domain": "IP"}}
+
+    for i in f.readlines():
+        d = i.split("\n")[0]
+        suburl = d + "." + websiteurl
         try:
-            result = dns.resolver.query(i, 'CNAME')
-            for j in result:
-                print(j.target)
-        except dns.resolver.NoAnswer:
-            print("No CName found for " + i)
+            print("Scanning: " + suburl)
+            response = dns.resolver.query(suburl)
+            for ipval in response:
+                wsrow = wsrow + 1
+                print("HIT: " + suburl + " : " + ipval.to_text())
+                x[j] = {suburl: ipval.to_text()}
+                j = j + 1
+
+                worksheet.write(wsrow, wscol, suburl)
+                worksheet.write(wsrow, wscol + 1, ipval.to_text())
+
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             continue
 
+    print("\n" + str(j - 1) + " active sub-domain entries found")
 
-def reconng(list):
-    for i in list:
-        # args = ["modules load recon/domains-hosts/brute_hosts", "options set SOURCE " + i, "run", "exit"]
-        subprocess.run("recon-ng") # Need to find a way to pass in the sequence of commands as laid out in args, in to
-        # the terminal once recon-ng is running. Then run the sql script and output the table results to our excel
-        # sheet.
-
+    workbook.close()
 
 if __name__ == '__main__':
-    StartTor()
+    OrgName()
