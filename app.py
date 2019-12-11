@@ -236,27 +236,43 @@ def MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl):
             worksheet.write(wsrow, wscol + 2, str1)
             worksheet.write(wsrow, wscol + 3, ipval)
 
-    workbook.close()
-    return FindCName(websiteurl)
+    return FindCName(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def FindCName(websiteurl):
+def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing CName query on identified "
           "domains\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "CName Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "Domain")
+    worksheet.write(wsrow, wscol + 1, "CNames")
 
     try:
         result = dns.resolver.query(websiteurl, 'CNAME')
         for j in result:
             print(j.target)
+
+            wsrow = wsrow + 1
+            worksheet.write(wsrow, wscol, websiteurl)
+            worksheet.write(wsrow, wscol, j.target)
+
     except dns.resolver.NoAnswer:
         print("No CName found for " + websiteurl)
 
-    return SubdomainSearch(websiteurl)
+    return SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def SubdomainSearch(websiteurl):
+def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
           "identified corporate domain\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "SubDomain Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "SubDomain")
+    worksheet.write(wsrow, wscol + 1, "IP Address")
 
     f = open("TESTdnswords.txt", 'r')
     j = int(1)
@@ -269,14 +285,20 @@ def SubdomainSearch(websiteurl):
             print("Scanning: " + suburl)
             response = dns.resolver.query(suburl)
             for ipval in response:
+                wsrow = wsrow + 1
                 print("HIT: " + suburl + " : " + ipval.to_text())
                 x[j] = {suburl: ipval.to_text()}
                 j = j + 1
+
+                worksheet.write(wsrow, wscol, suburl)
+                worksheet.write(wsrow, wscol + 1, ipval.to_text())
+
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
             continue
 
     print("\n" + str(j - 1) + " active sub-domain entries found")
 
+    workbook.close()
 
 if __name__ == '__main__':
     OrgName()
