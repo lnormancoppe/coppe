@@ -1,34 +1,55 @@
 #!/usr/bin/python3
 
+import subprocess
+
 import dns
-import urllib3
 import dns.resolver
-import json
-from bs4 import BeautifulSoup
+import requests
+from requests import get
+import urllib3
 import xlsxwriter
+from bs4 import BeautifulSoup
+import argparse
 
+print("Here we go!\n\n-------------------------------------------------------------")
 
-print("Here we go!\n-------------------------------------------------------------")
+"""
+def StartTor():
+    session = requests.session()
+
+    proxies = {
+        'http': 'socks4://localhost:9050',
+        'https': 'socks4://localhost:9050'
+    }
+
+    r = session.get("http://httpbin.org/ip", proxies=proxies).text
+    print(r)
+
+    ip = get('https://api.ipify.org').text
+    print(ip)
+
+    return # OrgName()
+"""
 
 
 def OrgName():
-    # orgname = input("Enter organisation name: ") # Commented out for testing only
-    orgname = "conradgargett"  # < hard coded for testing only.
+    orgname = input("Enter organisation name: ")  # Commented out for testing only
+    # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
     org3 = orgname + ".net"
     orglist = [org1, org2, org3]
 
-    print("Scan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
+    print("\nScan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
 
-    # response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
-    response = "y"  # < in for testing only
+    response = input("Do you want to commence the scan, y/n?  ")  # < commented out for testing.
+    # response = "y"  # < in for testing only
     if response == "y":
-        print("\nApproved to carry on. \n-------------------------------------------------------------\nPerforming "
+        print("\nApproved to carry on. \n\n-------------------------------------------------------------\n\nPerforming "
               "DNS lookup")
         return DnsSearch(orglist, orgname)
     else:
-        response = input("Do you want to try a different organisation name, y/n?")
+        response = input("Do you want to try a different organisation name, y/n? ")
         if response == "n":
             exit()
         else:
@@ -89,8 +110,8 @@ def DnsSearch(orglist, orgname):
 
     # Request a user input that corresponds to the line number to determine the corporate website. We take that input
     # and pass to the next function to begin scraping for email credentials.
-    # linecheck = input("Line Number: ") # < comment out for testing only
-    linecheck = "1"  # < in for testing only
+    linecheck = input("Line Number: ")  # < comment out for testing only
+    # linecheck = "1"  # < in for testing only
     print("\n-------------------------------------------------------------\nSelected URL: " + temp[linecheck] +
           "\n-------------------------------------------------------------\n")
 
@@ -109,9 +130,10 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
     # We use BeautifulSoup4 to parse the response and allow us to easily extract given bodies of information. The output
     # is stored in a table named 'mailtos'.
 
-    print("Performing website contact detail extraction @" + websiteurl)
+    print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/about/"]
+    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
+                      "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
@@ -153,10 +175,10 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
         # There should be another lookup here to identify where a page in built on json eg. 'email' : 'user@domain.com'
     print("\n-------------------------------------------------------------\n")
-    return CleanContacts(contactemails, wsrow, wscol, workbook, worksheet)
+    return CleanContacts(contactemails, wsrow, wscol, workbook, worksheet, websiteurl)
 
 
-def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet):
+def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet, websiteurl):
     # This function is cleaning up the returned list of email addresses. The intention being to pivot the output so we
     # are only dealing with one instance of each domain variant before we commence MX lookup.
 
@@ -177,14 +199,14 @@ def CleanContacts(contactemails, wsrow, wscol, workbook, worksheet):
         worksheet.write(wsrow, wscol, i)
         print(i)
 
-    return mxlookup(list, wsrow, wscol, workbook, worksheet)
+    return MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl)
 
 
-def mxlookup(list, wsrow, wscol, workbook, worksheet):
+def MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl):
     # Performing a MX Lookup against the unique list of domain names, returned from the website URL and scraping of the
     # various "contact" pages across the site.
 
-    print("\n-------------------------------------------------------------\nCommencing MX Lookup on identified "
+    print("\n-------------------------------------------------------------\n\nCommencing MX Lookup on identified "
           "domains\n")
 
     wsrow = wsrow + 2
@@ -198,22 +220,98 @@ def mxlookup(list, wsrow, wscol, workbook, worksheet):
     mxlist = {}
     for i in list:
         result = dns.resolver.query(i, 'MX')
+
         for j in result:
             wsrow = wsrow + 1
             x = j.to_text()
             str1, str2 = x.split()
             arecord = dns.resolver.query(str2, 'A')
+
             for ipvalue in arecord:
                 mxlist[str2] = ipvalue.to_text()
                 ipval = ipvalue.to_text()
+
             print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
             worksheet.write(wsrow, wscol, i)
             worksheet.write(wsrow, wscol + 1, str2)
             worksheet.write(wsrow, wscol + 2, str1)
             worksheet.write(wsrow, wscol + 3, ipval)
 
+    return FindCName(websiteurl, wsrow, wscol, workbook, worksheet)
+
+
+def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
+    print("-------------------------------------------------------------\n\nCommencing CName query on identified "
+          "domains\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "CName Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "Domain")
+    worksheet.write(wsrow, wscol + 1, "CNames")
+
+    try:
+        result = dns.resolver.query(websiteurl, 'CNAME')
+        for j in result:
+            print(j.target)
+
+            wsrow = wsrow + 1
+            worksheet.write(wsrow, wscol, websiteurl)
+            worksheet.write(wsrow, wscol, j.target)
+
+    except dns.resolver.NoAnswer:
+        print("No CName found for " + websiteurl)
+
+    return SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet)
+
+
+def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
+    print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
+          "identified corporate domain\n")
+
+    wsrow = wsrow + 2
+    worksheet.write(wsrow, wscol, "SubDomain Scan")
+    wsrow = wsrow + 1
+    worksheet.write(wsrow, wscol, "SubDomain")
+    worksheet.write(wsrow, wscol + 1, "IP Address")
+
+    f = open("dnswords.txt", "r")
+    j = int(1)
+    x = {"index": {"Sub Domain": "IP"}}
+
+    for i in f.readlines():
+        while True:
+            d = i.split("\n")[0]
+            suburl = d + "." + websiteurl
+            try:
+                print("Scanning: " + suburl)
+                response = dns.resolver.query(suburl)
+                for ipval in response:
+                    wsrow = wsrow + 1
+                    print("HIT: " + suburl + " : " + ipval.to_text())
+                    x[j] = {suburl: ipval.to_text()}
+                    j = j + 1
+
+                    worksheet.write(wsrow, wscol, suburl)
+                    worksheet.write(wsrow, wscol + 1, ipval.to_text())
+                break
+
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                break
+
+            except (dns.resolver.Timeout):
+                print("Experienced Timeout. Retrying DNS query.")
+                continue
+
+
+    print("\n" + str(j - 1) + " active sub-domain entries found")
+
+    for i in x.values():
+        for j in i:
+            print(j)
+        
+
     workbook.close()
-    print("\n")
 
 
 if __name__ == '__main__':
