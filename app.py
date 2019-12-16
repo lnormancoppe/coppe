@@ -10,6 +10,7 @@ import urllib3
 import xlsxwriter
 from bs4 import BeautifulSoup
 import argparse
+from pathlib import Path
 
 print("Here we go!\n\n-------------------------------------------------------------")
 
@@ -64,7 +65,8 @@ def DnsSearch(orglist, orgname):
     iplist = {}  # Table to store org name and IP address
 
     # Create xlsx workbook to store output.
-    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
+    home = str(Path.home())
+    workbook = xlsxwriter.Workbook(home + "/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
     # be made generic to suit all of our users.
     worksheet = workbook.add_worksheet("Output")
     worksheet.set_column('A:A', 48)
@@ -296,7 +298,7 @@ def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
                     worksheet.write(wsrow, wscol + 1, ipval.to_text())
                 break
 
-            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
                 break
 
             except (dns.resolver.Timeout):
