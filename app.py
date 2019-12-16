@@ -33,7 +33,7 @@ def StartTor():
 
 
 def OrgName():
-    orgname = input("Enter organisation name: ") # Commented out for testing only
+    orgname = input("Enter organisation name: ")  # Commented out for testing only
     # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
     org2 = orgname + ".com"
@@ -42,7 +42,7 @@ def OrgName():
 
     print("\nScan will assess for:\n  " + org1 + "\n  " + org2 + "\n  " + org3)
 
-    response = input("Do you want to commence the scan, y/n?  ") # < commented out for testing.
+    response = input("Do you want to commence the scan, y/n?  ")  # < commented out for testing.
     # response = "y"  # < in for testing only
     if response == "y":
         print("\nApproved to carry on. \n\n-------------------------------------------------------------\n\nPerforming "
@@ -110,7 +110,7 @@ def DnsSearch(orglist, orgname):
 
     # Request a user input that corresponds to the line number to determine the corporate website. We take that input
     # and pass to the next function to begin scraping for email credentials.
-    linecheck = input("Line Number: ") # < comment out for testing only
+    linecheck = input("Line Number: ")  # < comment out for testing only
     # linecheck = "1"  # < in for testing only
     print("\n-------------------------------------------------------------\nSelected URL: " + temp[linecheck] +
           "\n-------------------------------------------------------------\n")
@@ -132,7 +132,8 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
     print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/about/"]
+    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
+                      "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
@@ -274,31 +275,44 @@ def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
     worksheet.write(wsrow, wscol, "SubDomain")
     worksheet.write(wsrow, wscol + 1, "IP Address")
 
-    f = open("TESTdnswords.txt", 'r')
+    f = open("dnswords.txt", "r")
     j = int(1)
     x = {"index": {"Sub Domain": "IP"}}
 
     for i in f.readlines():
-        d = i.split("\n")[0]
-        suburl = d + "." + websiteurl
-        try:
-            print("Scanning: " + suburl)
-            response = dns.resolver.query(suburl)
-            for ipval in response:
-                wsrow = wsrow + 1
-                print("HIT: " + suburl + " : " + ipval.to_text())
-                x[j] = {suburl: ipval.to_text()}
-                j = j + 1
+        while True:
+            d = i.split("\n")[0]
+            suburl = d + "." + websiteurl
+            try:
+                print("Scanning: " + suburl)
+                response = dns.resolver.query(suburl)
+                for ipval in response:
+                    wsrow = wsrow + 1
+                    print("HIT: " + suburl + " : " + ipval.to_text())
+                    x[j] = {suburl: ipval.to_text()}
+                    j = j + 1
 
-                worksheet.write(wsrow, wscol, suburl)
-                worksheet.write(wsrow, wscol + 1, ipval.to_text())
+                    worksheet.write(wsrow, wscol, suburl)
+                    worksheet.write(wsrow, wscol + 1, ipval.to_text())
+                break
 
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-            continue
+            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                break
+
+            except (dns.resolver.Timeout):
+                print("Experienced Timeout. Retrying DNS query.")
+                continue
+
 
     print("\n" + str(j - 1) + " active sub-domain entries found")
 
+    for i in x.values():
+        for j in i:
+            print(j)
+        
+
     workbook.close()
+
 
 if __name__ == '__main__':
     OrgName()
