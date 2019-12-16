@@ -1,35 +1,15 @@
 #!/usr/bin/python3
 
-import subprocess
-
 import dns
 import dns.resolver
-import requests
-from requests import get
 import urllib3
 import xlsxwriter
 from bs4 import BeautifulSoup
-import argparse
+from multiprocessing.dummy import Pool as ThreadPool
+from pathlib import Path
+from functools import partial
 
 print("Here we go!\n\n-------------------------------------------------------------")
-
-"""
-def StartTor():
-    session = requests.session()
-
-    proxies = {
-        'http': 'socks4://localhost:9050',
-        'https': 'socks4://localhost:9050'
-    }
-
-    r = session.get("http://httpbin.org/ip", proxies=proxies).text
-    print(r)
-
-    ip = get('https://api.ipify.org').text
-    print(ip)
-
-    return # OrgName()
-"""
 
 
 def OrgName():
@@ -62,9 +42,10 @@ def DnsSearch(orglist, orgname):
     # a complete address from scratch.
 
     iplist = {}  # Table to store org name and IP address
+    home = str(Path.home())
 
     # Create xlsx workbook to store output.
-    workbook = xlsxwriter.Workbook("/root/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
+    workbook = xlsxwriter.Workbook(home + "/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
     # be made generic to suit all of our users.
     worksheet = workbook.add_worksheet("Output")
     worksheet.set_column('A:A', 48)
@@ -132,8 +113,9 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
     print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
-                      "/about_us/", "/about_us/"]
+    contacturllist = ["/contact/"]
+    # ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
+    # "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
@@ -262,24 +244,68 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
     except dns.resolver.NoAnswer:
         print("No CName found for " + websiteurl)
 
-    return SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet)
+    return InitThread(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
+def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
+    while True:
+        try:
+            print("Scanning: " + finallist)
+            response = dns.resolver.query(finallist)
+            for ipval in response:
+                print("HIT: " + finallist + " : " + ipval.to_text())
+                break
+
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            break
+
+        except (dns.resolver.Timeout):
+            print("Experienced Timeout. Retrying DNS query.")
+            continue
+
+
+def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
           "identified corporate domain\n")
 
+    # Set up the Excel worksheet headings.
     wsrow = wsrow + 2
     worksheet.write(wsrow, wscol, "SubDomain Scan")
     wsrow = wsrow + 1
     worksheet.write(wsrow, wscol, "SubDomain")
     worksheet.write(wsrow, wscol + 1, "IP Address")
 
+    # Introduce the words list.
     f = open("dnswords.txt", "r")
     j = int(1)
     x = {"index": {"Sub Domain": "IP"}}
 
+    # Create a local list, concatenating the dnswords.txt line with the domian.
+    finallist = []
     for i in f.readlines():
+        d = i.split("\n")[0]
+        finallist.append(d + "." + websiteurl)
+
+    # Create a dictionary for the nameservers.
+    dnsservers = {
+        "8.8.8.8": 1,
+        "8.8.4.4": 2,
+    }
+
+    specresolver = dns.resolver.Resolver()
+    specresolver.nameservers = dnsservers
+
+
+    func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, dnsservers)
+
+    # Introduce the threading.
+    pool = ThreadPool(4)
+    pool.map(func, finallist)
+    pool.close()
+    pool.join()
+
+    # This is the initial method.
+    """for i in f.readlines():
         while True:
             d = i.split("\n")[0]
             suburl = d + "." + websiteurl
@@ -308,8 +334,7 @@ def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
 
     for i in x.values():
         for j in i:
-            print(j)
-        
+            print(j)"""
 
     workbook.close()
 
