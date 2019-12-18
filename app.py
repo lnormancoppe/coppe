@@ -256,37 +256,40 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
     return InitThread(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
+def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsserver, nsname):
+    #print(finallist)
     while True:
-        for i, j in dnsservers.items():
-            if j == 0:
-                dnsservers[i] = 1
-                try:
-                    specresolver = dns.resolver.Resolver()
-                    specresolver.nameservers = [i]
+       # print(nsname)
 
-                    print("Scanning: " + finallist + "\nUsing " + i)
-                    response = specresolver.query(finallist)
-                    for ipval in response:
-                        print("HIT: " + finallist + " : " + ipval.to_text())
-                        break
 
-                except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
-                    break
+        try:
+            specresolver = dns.resolver.Resolver()
+            specresolver.nameservers = [dnsserver]
 
-                except dns.resolver.Timeout:
-                    print("Experienced Timeout. Retrying DNS query.")
-                    continue
-
-                dnsservers[i] = 0
+            print("Scanning: " + nsname + "\nUsing " + dnsserver)
+            response = specresolver.query(nsname)
+            for ipval in response:
+                print("HIT: " + nsname + " : " + ipval.to_text())
                 break
-            else:
-                print("a")
+
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            #dnsservers[i] = 0
+            break
+
+        except dns.resolver.Timeout:
+            print("Experienced Timeout. Retrying DNS query.")
+            continue
+
+        #dnsservers[i] = 0
+        break
+            #else:
+            #    print("a")
 
 
 def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
           "identified corporate domain\n")
+
 
     # Set up the Excel worksheet headings.
     wsrow = wsrow + 2
@@ -305,7 +308,7 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     for i in f.readlines():
         d = i.split("\n")[0]
         finallist.append(d + "." + websiteurl)
-
+    print(finallist)
     # Create a dictionary for the nameservers.
     dnsservers = {
         "8.8.8.8": 0,
@@ -313,13 +316,22 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
         "208.67.222.222": 0,
         "208.67.220.220": 0,
     }
-
+    pool = ThreadPool(4)
     # Create function to handle passing additional parametres into pool.map
-    func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, dnsservers)
+
+    for i, j in dnsservers.items():
+
+        if j == 0:
+            dnsservers[i] = 1
+            func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, i)
+            pool.map(func, finallist)
+            dnsservers[i] = 0
 
     # Introduce the threading.
-    pool = ThreadPool(4)
-    pool.map(func, finallist)
+
+    #
+        #print(nsname)
+    #pool.map(func, nsname)
     pool.close()
     pool.join()
 
