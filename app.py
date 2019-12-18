@@ -8,11 +8,22 @@ from bs4 import BeautifulSoup
 from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
 from functools import partial
+import threading
 
 print("Here we go!\n\n-------------------------------------------------------------")
 
 
 def OrgName():
+    print("    _____  ")
+    print("   / ___/__  ___  ___  ___")
+    print("  / /__/ _ \/ _ \/ _ \/ -_)")
+    print("  \___/\___/ .__/ .__/\__/")
+    print("     ____ /_/  /_/___               ___           ____ __")
+    print("    / __/_ ______/ _/__ ________   / _ \_______  / _(_) /__ ____")
+    print("   _\ \/ // / __/ _/ _ `/ __/ -_) / ___/ __/ _ \/ _/ / / -_) __/")
+    print("  /___/\_,_/_/ /_/ \_,_/\__/\__/ /_/  /_/  \___/_//_/_/\__/_/")
+    print('')
+
     orgname = input("Enter organisation name: ")  # Commented out for testing only
     # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
@@ -248,32 +259,40 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
 
 
 def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
+    threadid = threading.get_ident()
+    for i, j in dnsservers.items():
+        if dnsservers.get(i) == 0:
+            x = i
+            dnsservers.pop(i)
+            dnsservers[x] = threadid
+            print("Thread ID added to list using DNS Server: " + x)
+            break
+        elif dnsservers.get(i) == threadid:
+            x = dnsservers.get(i)
+            print("ThreadID Exists")
+            break
+
     while True:
-        for i, j in dnsservers.items():
-            if j == 0:
-                dnsservers[i] = 1
-                try:
-                    specresolver = dns.resolver.Resolver()
-                    specresolver.nameservers = [i]
+        try:
+            specresolver = dns.resolver.Resolver()
+            specresolver.nameservers = [x]
 
-                    print("Scanning: " + finallist + "\nUsing " + i)
-                    response = specresolver.query(finallist)
-                    for ipval in response:
-                        print("HIT: " + finallist + " : " + ipval.to_text())
-                        break
-
-                except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
-                    dnsservers[i] = 0
-                    break
-
-                except dns.resolver.Timeout:
-                    print("Experienced Timeout. Retrying DNS query.")
-                    continue
-
-                dnsservers[i] = 0
+            print("Scanning: " + finallist + "\nUsing " + i)
+            response = specresolver.query(finallist)
+            for ipval in response:
+                print("HIT: " + finallist + " : " + ipval.to_text())
                 break
-            else:
-                print("a")
+
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            dnsservers[i] = 0
+            break
+
+        except dns.resolver.Timeout:
+            print("Experienced Timeout. Retrying DNS query.")
+            continue
+
+        dnsservers[i] = 0
+        break
 
 
 def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
