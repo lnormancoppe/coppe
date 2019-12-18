@@ -258,19 +258,30 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
 
 def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
     while True:
-        try:
-            print("Scanning: " + finallist)
-            response = dns.resolver.query(finallist)
-            for ipval in response:
-                print("HIT: " + finallist + " : " + ipval.to_text())
+        for i, j in dnsservers.items():
+            if j == 0:
+                dnsservers[i] = 1
+                try:
+                    specresolver = dns.resolver.Resolver()
+                    specresolver.nameservers = [i]
+
+                    print("Scanning: " + finallist + "\nUsing " + i)
+                    response = specresolver.query(finallist)
+                    for ipval in response:
+                        print("HIT: " + finallist + " : " + ipval.to_text())
+                        break
+
+                except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+                    break
+
+                except dns.resolver.Timeout:
+                    print("Experienced Timeout. Retrying DNS query.")
+                    continue
+
+                dnsservers[i] = 0
                 break
-
-        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
-            break
-
-        except (dns.resolver.Timeout):
-            print("Experienced Timeout. Retrying DNS query.")
-            continue
+            else:
+                print("a")
 
 
 def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
@@ -297,14 +308,13 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
 
     # Create a dictionary for the nameservers.
     dnsservers = {
-        "8.8.8.8": 1,
-        "8.8.4.4": 2,
+        "8.8.8.8": 0,
+        "8.8.4.4": 0,
+        "208.67.222.222": 0,
+        "208.67.220.220": 0,
     }
 
-    specresolver = dns.resolver.Resolver()
-    specresolver.nameservers = dnsservers
-
-
+    # Create function to handle passing additional parametres into pool.map
     func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, dnsservers)
 
     # Introduce the threading.
