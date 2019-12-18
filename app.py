@@ -265,11 +265,11 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             x = i
             dnsservers.pop(i)
             dnsservers[x] = threadid
-            print("Thread ID added to list using DNS Server: " + x)
+            # print("Thread ID added to list using DNS Server: " + x) # < print for testing only.
             break
         elif dnsservers.get(i) == threadid:
             x = dnsservers.get(i)
-            print("ThreadID Exists")
+            # print("ThreadID Exists") # < print for testing only.
             break
 
     while True:
@@ -277,10 +277,12 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             specresolver = dns.resolver.Resolver()
             specresolver.nameservers = [x]
 
-            print("Scanning: " + finallist + "\nUsing " + i)
+            print("Scanning: " + finallist + "\nUsing " + i + " on NS: " + x)
             response = specresolver.query(finallist)
             for ipval in response:
                 print("HIT: " + finallist + " : " + ipval.to_text())
+                worksheet.write(wsrow, wscol, finallist)
+                worksheet.write(wsrow, wscol + 1, ipval.to_text())
                 break
 
         except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
