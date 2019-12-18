@@ -277,7 +277,7 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             specresolver = dns.resolver.Resolver()
             specresolver.nameservers = [x]
 
-            print("Scanning: " + finallist + "\nUsing " + i + " on NS: " + x)
+            print("Scanning: " + finallist + " using " + i + " on NS: " + x)
             response = specresolver.query(finallist)
             for ipval in response:
                 print("HIT: " + finallist + " : " + ipval.to_text())
