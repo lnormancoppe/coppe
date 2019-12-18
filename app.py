@@ -272,12 +272,13 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             # print("ThreadID Exists") # < print for testing only.
             break
 
+
     while True:
         try:
             specresolver = dns.resolver.Resolver()
             specresolver.nameservers = [x]
 
-            print("Scanning: " + finallist + " using " + i + " on NS: " + x)
+            print("Scanning: " + finallist + " using NS: " + x + ", on threadID: " + str(threadid))
             response = specresolver.query(finallist)
             for ipval in response:
                 print("HIT: " + finallist + " : " + ipval.to_text())
@@ -295,6 +296,7 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
 
         dnsservers[i] = 0
         break
+    return
 
 
 def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
@@ -325,13 +327,15 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
         "8.8.4.4": 0,
         "208.67.222.222": 0,
         "208.67.220.220": 0,
+        "1:1:1:1": 0,
+        "1.0.0.1": 0,
     }
 
     # Create function to handle passing additional parametres into pool.map
     func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, dnsservers)
 
     # Introduce the threading.
-    pool = ThreadPool(4)
+    pool = ThreadPool(6)
     pool.map(func, finallist)
     pool.close()
     pool.join()
