@@ -263,6 +263,7 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
                         break
 
                 except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+                    dnsservers[i] = 0
                     break
 
                 except dns.resolver.Timeout:
