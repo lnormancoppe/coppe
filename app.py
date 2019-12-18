@@ -260,6 +260,7 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
 
 def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
     threadid = threading.get_ident()
+
     for i, j in dnsservers.items():
         if dnsservers.get(i) == 0:
             x = i
@@ -271,7 +272,6 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             x = dnsservers.get(i)
             # print("ThreadID Exists") # < print for testing only.
             break
-
 
     while True:
         try:
@@ -340,40 +340,17 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     pool.close()
     pool.join()
 
-    # This is the initial method.
-    """for i in f.readlines():
-        while True:
-            d = i.split("\n")[0]
-            suburl = d + "." + websiteurl
-            try:
-                print("Scanning: " + suburl)
-                response = dns.resolver.query(suburl)
-                for ipval in response:
-                    wsrow = wsrow + 1
-                    print("HIT: " + suburl + " : " + ipval.to_text())
-                    x[j] = {suburl: ipval.to_text()}
-                    j = j + 1
-
-                    worksheet.write(wsrow, wscol, suburl)
-                    worksheet.write(wsrow, wscol + 1, ipval.to_text())
-                break
-
-            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
-                break
-
-            except (dns.resolver.Timeout):
-                print("Experienced Timeout. Retrying DNS query.")
-                continue
-
-
-    print("\n" + str(j - 1) + " active sub-domain entries found")
-
-    for i in x.values():
-        for j in i:
-            print(j)"""
-
+    #Close the xlsx workbook to save changes.
     workbook.close()
 
+    # The remaining task is:
+    """
+    For the convenience of the user, to print the results of hits to the terminal at the end of the the subdomainsearch.
+    To do so, we need to pass out 'ipval.to_text()' and the corresponding 'finallist' value. However, as duplicates 
+    appear in the search for the 'finallist' value, and potentially the ipval value, this needs to be a nested 
+    dictionary. - {1: {finallist: ipval}, 2: {finallist: ipval}} and so on.
+    The challenge is: storing and incrementing the key (1, 2, 3, and so on) from within the subdomainsearch.
+    """
 
 if __name__ == '__main__':
     OrgName()
