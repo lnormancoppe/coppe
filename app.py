@@ -124,9 +124,8 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
     print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/"]
-    # ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
-    # "/about_us/", "/about_us/"]
+    contacturllist = ["/contact/", "/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/",
+                      "/about-us/", "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
@@ -212,23 +211,32 @@ def MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl):
 
     mxlist = {}
     for i in list:
-        result = dns.resolver.query(i, 'MX')
+        try:
+            result = dns.resolver.query(i, 'MX')
+            for j in result:
+                try:
+                    wsrow = wsrow + 1
+                    x = j.to_text()
+                    str1, str2 = x.split()
+                    arecord = dns.resolver.query(str2, 'A')
 
-        for j in result:
-            wsrow = wsrow + 1
-            x = j.to_text()
-            str1, str2 = x.split()
-            arecord = dns.resolver.query(str2, 'A')
+                    for ipvalue in arecord:
+                        mxlist[str2] = ipvalue.to_text()
+                        ipval = ipvalue.to_text()
 
-            for ipvalue in arecord:
-                mxlist[str2] = ipvalue.to_text()
-                ipval = ipvalue.to_text()
+                    print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
+                    worksheet.write(wsrow, wscol, i)
+                    worksheet.write(wsrow, wscol + 1, str2)
+                    worksheet.write(wsrow, wscol + 2, str1)
+                    worksheet.write(wsrow, wscol + 3, ipval)
 
-            print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
-            worksheet.write(wsrow, wscol, i)
-            worksheet.write(wsrow, wscol + 1, str2)
-            worksheet.write(wsrow, wscol + 2, str1)
-            worksheet.write(wsrow, wscol + 3, ipval)
+                except (dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                    print("DNS lookup for: " + str2 + " did not respond with a result.")
+                    break
+
+        except (dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            print("DNS lookup for: " + i + " did not respond with a result.")
+            break
 
     return FindCName(websiteurl, wsrow, wscol, workbook, worksheet)
 
@@ -261,6 +269,7 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
 def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
     threadid = threading.get_ident()
 
+    # ID a thread and assign a DNS server.
     for i, j in dnsservers.items():
         if dnsservers.get(i) == 0:
             x = i
@@ -273,10 +282,16 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             # print("ThreadID Exists") # < print for testing only.
             break
 
+
+    # Perform the DNS lookup against the given 'finallist' value.
     while True:
+        # incremening variable to manage count of retries.
+        Retry = 0
         try:
             specresolver = dns.resolver.Resolver()
             specresolver.nameservers = [x]
+            specresolver.timeout = 3
+            specresolver.lifetime = 3
 
             print("Scanning: " + finallist + " using NS: " + x + ", on threadID: " + str(threadid))
             response = specresolver.query(finallist)
@@ -292,6 +307,11 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
 
         except dns.resolver.Timeout:
             print("Experienced Timeout. Retrying DNS query.")
+            Retry = Retry + 1
+            if Retry == 5:
+                worksheet.write(wsrow, wscol, finallist)
+                worksheet.write(wsrow, wscol + 1, "Timeout after 5 attempts")
+                break
             continue
 
         dnsservers[i] = 0
