@@ -1,39 +1,29 @@
 #!/usr/bin/python3
 
-import subprocess
-
 import dns
 import dns.resolver
-import requests
-from requests import get
 import urllib3
 import xlsxwriter
 from bs4 import BeautifulSoup
-import argparse
+from multiprocessing.dummy import Pool as ThreadPool
 from pathlib import Path
+from functools import partial
+import threading
 
 print("Here we go!\n\n-------------------------------------------------------------")
 
-"""
-def StartTor():
-    session = requests.session()
-
-    proxies = {
-        'http': 'socks4://localhost:9050',
-        'https': 'socks4://localhost:9050'
-    }
-
-    r = session.get("http://httpbin.org/ip", proxies=proxies).text
-    print(r)
-
-    ip = get('https://api.ipify.org').text
-    print(ip)
-
-    return # OrgName()
-"""
-
 
 def OrgName():
+    print("    _____  ")
+    print("   / ___/__  ___  ___  ___")
+    print("  / /__/ _ \/ _ \/ _ \/ -_)")
+    print("  \___/\___/ .__/ .__/\__/")
+    print("     ____ /_/  /_/___               ___           ____ __")
+    print("    / __/_ ______/ _/__ ________   / _ \_______  / _(_) /__ ____")
+    print("   _\ \/ // / __/ _/ _ `/ __/ -_) / ___/ __/ _ \/ _/ / / -_) __/")
+    print("  /___/\_,_/_/ /_/ \_,_/\__/\__/ /_/  /_/  \___/_//_/_/\__/_/")
+    print('')
+
     orgname = input("Enter organisation name: ")  # Commented out for testing only
     # orgname = "bbc"  # < hard coded for testing only.
     org1 = orgname + ".com.au"
@@ -63,9 +53,9 @@ def DnsSearch(orglist, orgname):
     # a complete address from scratch.
 
     iplist = {}  # Table to store org name and IP address
+    home = str(Path.home())
 
     # Create xlsx workbook to store output.
-    home = str(Path.home())
     workbook = xlsxwriter.Workbook(home + "/Desktop/" + orgname + "-SurfProfOutput.xlsx")  # This location will need to
     # be made generic to suit all of our users.
     worksheet = workbook.add_worksheet("Output")
@@ -81,12 +71,21 @@ def DnsSearch(orglist, orgname):
     worksheet.write(wsrow, wscol, "Query")
     worksheet.write(wsrow, wscol + 1, "Domain")
     worksheet.write(wsrow, wscol + 2, "IP Address")
+    timeout = 0
 
     for x in orglist:
         try:
+            dns.resolver.Resolver.timeout = 3
+            dns.resolver.Resolver.lifetime = 3
             arecord = dns.resolver.query(x, 'A')
         except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
             print("'" + x + "'" + " has no DNS response. Removing from list")
+        except dns.resolver.Timeout:
+            print("Timeout error raised, retrying...")
+            timeout = timeout + 1
+            if timeout == 5:
+                print("Timeout after 5 attempts. No DNS resolution.")
+                break
         else:
             for ipvalue in arecord:
                 print("'" + x + "'" + " -- IP: ", ipvalue.to_text())
@@ -134,11 +133,12 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
     print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/", "/about-us/",
-                      "/about_us/", "/about_us/"]
+    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/",
+                      "/about-us/", "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
+    timeout = 0
 
     wsrow = wsrow + 2
     worksheet.write(wsrow, wscol, "URL Scanned")
@@ -149,7 +149,7 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
         checkurl = "http://www." + websiteurl + li  # Check for port 80 before 443 by redirect. ie best practice
 
         print("\nNow scanning: " + checkurl)
-        response = http.request('GET', checkurl)
+        response = http.request('GET', checkurl, timeout=5)
 
         print("HTTP Response: " + str(response.status))  # Return the status of the page tells us what information is
         # present on the 404 pages as well.
@@ -221,23 +221,32 @@ def MxLookup(list, wsrow, wscol, workbook, worksheet, websiteurl):
 
     mxlist = {}
     for i in list:
-        result = dns.resolver.query(i, 'MX')
+        try:
+            result = dns.resolver.query(i, 'MX')
+            for j in result:
+                try:
+                    wsrow = wsrow + 1
+                    x = j.to_text()
+                    str1, str2 = x.split()
+                    arecord = dns.resolver.query(str2, 'A')
 
-        for j in result:
-            wsrow = wsrow + 1
-            x = j.to_text()
-            str1, str2 = x.split()
-            arecord = dns.resolver.query(str2, 'A')
+                    for ipvalue in arecord:
+                        mxlist[str2] = ipvalue.to_text()
+                        ipval = ipvalue.to_text()
 
-            for ipvalue in arecord:
-                mxlist[str2] = ipvalue.to_text()
-                ipval = ipvalue.to_text()
+                    print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
+                    worksheet.write(wsrow, wscol, i)
+                    worksheet.write(wsrow, wscol + 1, str2)
+                    worksheet.write(wsrow, wscol + 2, str1)
+                    worksheet.write(wsrow, wscol + 3, ipval)
 
-            print(i + " MX record at: " + str2 + " @ Priority: " + str1 + ", IP: " + ipval)
-            worksheet.write(wsrow, wscol, i)
-            worksheet.write(wsrow, wscol + 1, str2)
-            worksheet.write(wsrow, wscol + 2, str1)
-            worksheet.write(wsrow, wscol + 3, ipval)
+                except (dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+                    print("DNS lookup for: " + str2 + " did not respond with a result.")
+                    break
+
+        except (dns.resolver.NoNameservers, dns.resolver.NXDOMAIN, dns.resolver.NoAnswer):
+            print("DNS lookup for: " + i + " did not respond with a result.")
+            break
 
     return FindCName(websiteurl, wsrow, wscol, workbook, worksheet)
 
@@ -264,56 +273,123 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
     except dns.resolver.NoAnswer:
         print("No CName found for " + websiteurl)
 
-    return SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet)
+    return InitThread(websiteurl, wsrow, wscol, workbook, worksheet)
 
 
-def SubdomainSearch(websiteurl, wsrow, wscol, workbook, worksheet):
+def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
+    threadid = threading.get_ident()
+    Retry = 0
+    # ID a thread and assign a DNS server.
+    for i, j in dnsservers.items():
+        if dnsservers.get(i) == 0:
+            x = i
+            dnsservers.pop(i)
+            dnsservers[x] = threadid
+            # print("Thread ID added to list using DNS Server: " + x) # < print for testing only.
+            break
+        elif dnsservers.get(i) == threadid:
+            x = dnsservers.get(i)
+            # print("ThreadID Exists") # < print for testing only.
+            break
+
+    # Perform the DNS lookup against the given 'finallist' value.
+    while True:
+        # incremening variable to manage count of retries.
+
+        try:
+            specresolver = dns.resolver.Resolver()
+            specresolver.nameservers = [x]
+            specresolver.timeout = 3
+            specresolver.lifetime = 3
+
+            print("Scanning: " + finallist + " using NS: " + str(x) + ", on threadID: " + str(threadid))
+            response = specresolver.query(finallist)
+            for ipval in response:
+                print("HIT: " + finallist + " : " + ipval.to_text())
+                worksheet.write(wsrow, wscol, finallist)
+                worksheet.write(wsrow, wscol + 1, ipval.to_text())
+                break
+
+        except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            dnsservers[i] = 0
+            break
+
+        except dns.resolver.Timeout:
+            print("Experienced Timeout. Retrying DNS query.")
+            Retry = Retry + 1
+            if Retry == 5:
+                worksheet.write(wsrow, wscol, finallist)
+                worksheet.write(wsrow, wscol + 1, "Timeout after 5 attempts")
+                dnsservers[i] = 0
+                break
+            continue
+
+        dnsservers[i] = 0
+        break
+    return
+
+
+def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     print("-------------------------------------------------------------\n\nCommencing brute sub-domain query on "
           "identified corporate domain\n")
 
+    # Set up the Excel worksheet headings.
     wsrow = wsrow + 2
     worksheet.write(wsrow, wscol, "SubDomain Scan")
     wsrow = wsrow + 1
     worksheet.write(wsrow, wscol, "SubDomain")
     worksheet.write(wsrow, wscol + 1, "IP Address")
 
+    # Introduce the words list.
     f = open("dnswords.txt", "r")
     j = int(1)
     x = {"index": {"Sub Domain": "IP"}}
 
+    # Create a local list, concatenating the dnswords.txt line with the domian.
+    finallist = []
     for i in f.readlines():
-        while True:
-            d = i.split("\n")[0]
-            suburl = d + "." + websiteurl
-            try:
-                print("Scanning: " + suburl)
-                response = dns.resolver.query(suburl)
-                for ipval in response:
-                    wsrow = wsrow + 1
-                    print("HIT: " + suburl + " : " + ipval.to_text())
-                    x[j] = {suburl: ipval.to_text()}
-                    j = j + 1
+        d = i.split("\n")[0]
+        finallist.append(d + "." + websiteurl)
 
-                    worksheet.write(wsrow, wscol, suburl)
-                    worksheet.write(wsrow, wscol + 1, ipval.to_text())
-                break
+    # Create a dictionary for the nameservers.
+    dnsservers = {
+        "8.8.8.8": 0,
+        "8.8.4.4": 0,
+        "208.67.222.222": 0,
+        "208.67.220.220": 0,
+        "1:1:1:1": 0,
+        "1.0.0.1": 0,
+    }
 
-            except (dns.resolver.NXDOMAIN, dns.resolver.NoAnswer, dns.resolver.NoNameservers):
-                break
+    # Create function to handle passing additional parametres into pool.map
+    func = partial(SubdomainSearch, wscol, wsrow, workbook, worksheet, dnsservers)
 
-            except (dns.resolver.Timeout):
-                print("Experienced Timeout. Retrying DNS query.")
-                continue
+    # Introduce the threading.
+    pool = ThreadPool(6)
+    pool.map(func, finallist)
+    pool.close()
+    pool.join()
 
-
-    print("\n" + str(j - 1) + " active sub-domain entries found")
-
-    for i in x.values():
-        for j in i:
-            print(j)
-        
-
+    # Close the xlsx workbook to save changes.
     workbook.close()
+
+    # The remaining task is:
+    """
+    For the convenience of the user, to print the results of hits to the terminal at the end of the the subdomainsearch.
+    To do so, we need to pass out 'ipval.to_text()' and the corresponding 'finallist' value. However, as duplicates 
+    appear in the search for the 'finallist' value, and potentially the ipval value, this needs to be a nested 
+    dictionary. - {1: {finallist: ipval}, 2: {finallist: ipval}} and so on.
+    The challenge is: storing and incrementing the key (1, 2, 3, and so on) from within the subdomainsearch.
+    """
+
+    print("\r\r\rResults outputted to file on the Desktop.")
+
+    print("     __  ____         _             _____                __    __     ")
+    print("    /  |/  (_)__ ___ (_)__  ___    / ___/__  __ _  ___  / /__ / /____ ")
+    print("   / /|_/ / (_-<(_-</ / _ \/ _ \  / /__/ _ \/  ' \/ _ \/ / -_) __/ -_)")
+    print("  /_/  /_/_/___/___/_/\___/_//_/  \___/\___/_/_/_/ .__/_/\__/\__/\__/ ")
+    print("                                                /_/                   ")
+    print("")
 
 
 if __name__ == '__main__':
