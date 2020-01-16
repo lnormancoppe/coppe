@@ -71,12 +71,21 @@ def DnsSearch(orglist, orgname):
     worksheet.write(wsrow, wscol, "Query")
     worksheet.write(wsrow, wscol + 1, "Domain")
     worksheet.write(wsrow, wscol + 2, "IP Address")
+    timeout = 0
 
     for x in orglist:
         try:
+            dns.resolver.Resolver.timeout = 3
+            dns.resolver.Resolver.lifetime = 3
             arecord = dns.resolver.query(x, 'A')
         except (dns.resolver.NoAnswer, dns.resolver.NXDOMAIN):
             print("'" + x + "'" + " has no DNS response. Removing from list")
+        except dns.resolver.Timeout:
+            print("Timeout error raised, retrying...")
+            timeout = timeout + 1
+            if timeout == 5:
+                print("Timeout after 5 attempts. No DNS resolution.")
+                break
         else:
             for ipvalue in arecord:
                 print("'" + x + "'" + " -- IP: ", ipvalue.to_text())
@@ -124,11 +133,12 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
 
     print("Performing website contact detail extraction @ " + websiteurl)
     http = urllib3.PoolManager()
-    contacturllist = ["/contact/", "/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/",
+    contacturllist = ["/contact/", "/contactus/", "/contact_us/", "/contact-us/", "/about/", "/aboutus/",
                       "/about-us/", "/about_us/", "/about_us/"]
     contactemails = {}
     contactemails[websiteurl] = []  # This is here in case the contact pages show domains which are completely different
     # to the website URL.
+    timeout = 0
 
     wsrow = wsrow + 2
     worksheet.write(wsrow, wscol, "URL Scanned")
@@ -139,7 +149,7 @@ def ContactScrape(websiteurl, wsrow, wscol, workbook, worksheet):
         checkurl = "http://www." + websiteurl + li  # Check for port 80 before 443 by redirect. ie best practice
 
         print("\nNow scanning: " + checkurl)
-        response = http.request('GET', checkurl)
+        response = http.request('GET', checkurl, timeout=5)
 
         print("HTTP Response: " + str(response.status))  # Return the status of the page tells us what information is
         # present on the 404 pages as well.
@@ -268,7 +278,7 @@ def FindCName(websiteurl, wsrow, wscol, workbook, worksheet):
 
 def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
     threadid = threading.get_ident()
-
+    Retry = 0
     # ID a thread and assign a DNS server.
     for i, j in dnsservers.items():
         if dnsservers.get(i) == 0:
@@ -286,14 +296,14 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
     # Perform the DNS lookup against the given 'finallist' value.
     while True:
         # incremening variable to manage count of retries.
-        Retry = 0
+
         try:
             specresolver = dns.resolver.Resolver()
             specresolver.nameservers = [x]
             specresolver.timeout = 3
             specresolver.lifetime = 3
 
-            print("Scanning: " + finallist + " using NS: " + x + ", on threadID: " + str(threadid))
+            print("Scanning: " + finallist + " using NS: " + str(x) + ", on threadID: " + str(threadid))
             response = specresolver.query(finallist)
             for ipval in response:
                 print("HIT: " + finallist + " : " + ipval.to_text())
@@ -311,6 +321,7 @@ def SubdomainSearch(wscol, wsrow, workbook, worksheet, dnsservers, finallist):
             if Retry == 5:
                 worksheet.write(wsrow, wscol, finallist)
                 worksheet.write(wsrow, wscol + 1, "Timeout after 5 attempts")
+                dnsservers[i] = 0
                 break
             continue
 
@@ -371,6 +382,16 @@ def InitThread(websiteurl, wsrow, wscol, workbook, worksheet):
     dictionary. - {1: {finallist: ipval}, 2: {finallist: ipval}} and so on.
     The challenge is: storing and incrementing the key (1, 2, 3, and so on) from within the subdomainsearch.
     """
+
+    print("\r\r\rResults outputted to file on the Desktop.")
+
+    print("     __  ____         _             _____                __    __     ")
+    print("    /  |/  (_)__ ___ (_)__  ___    / ___/__  __ _  ___  / /__ / /____ ")
+    print("   / /|_/ / (_-<(_-</ / _ \/ _ \  / /__/ _ \/  ' \/ _ \/ / -_) __/ -_)")
+    print("  /_/  /_/_/___/___/_/\___/_//_/  \___/\___/_/_/_/ .__/_/\__/\__/\__/ ")
+    print("                                                /_/                   ")
+    print("")
+
 
 if __name__ == '__main__':
     OrgName()
